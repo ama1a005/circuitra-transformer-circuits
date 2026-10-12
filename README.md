@@ -1,5 +1,4 @@
-# CIRCUITRA: Evaluating Hierarchical Reinforcement Learning for Efficient Transformer Circuit Localization
-
+# CIRCUITRA:Circuit Intelligence through Hierarchical Reinforcement and Temporal Abstraction
 > **Hierarchical Reinforcement Learning for Mechanistic Circuit Localization in Transformer Language Models**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
