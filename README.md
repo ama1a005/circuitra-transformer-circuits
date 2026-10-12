@@ -1,4 +1,4 @@
-# HRL Circuit Localization
+#: CIRCUITRA: Evaluating Hierarchical Reinforcement Learning for Efficient Transformer Circuit Localization
 
 > **Hierarchical Reinforcement Learning for Mechanistic Circuit Localization in Transformer Language Models**
 
