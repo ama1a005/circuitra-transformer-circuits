@@ -1,0 +1,15 @@
+# =============================================================================
+# ablations/horizon_8.yaml — Ablation: Option horizon = 8
+# Longer option horizon than default (5), giving workers more autonomy.
+# =============================================================================
+_base_: "../hrl_ppo/base.yaml"
+
+episode:
+  option_horizon: 8
+  max_manager_decisions: 25
+
+logging:
+  checkpoint_dir: "checkpoints/ablations/horizon_8"
+  backend: "tensorboard"
+
+seed: 42

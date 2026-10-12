@@ -1,0 +1,57 @@
+# =============================================================================
+# baselines/random.yaml — Random baseline (uniformly random edge pruning)
+# =============================================================================
+_base_: "../default.yaml"
+
+circuit:
+  dataset: "mib"
+  model_name: "gpt2"
+  task_name: "ioi"
+  candidate_top_k: 512
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 32
+  max_causal_forward_calls: 500
+
+episode:
+  max_episode_steps: 200
+  allow_explicit_stop: false
+  start_fully_included: true
+  random_start_prob: 0.0
+
+# Reward settings do not affect the random baseline (no learning).
+# Kept for consistent evaluation metrics.
+reward:
+  alpha: 1.0
+  beta: 0.05
+  gamma_cost: 0.001
+  terminal_bonus: 1.0
+  terminal_faithfulness_min: 0.8
+
+hrl:
+  enabled: false
+
+# Baseline-specific settings
+baseline:
+  method: "random"
+  # Edge retention probability at each step
+  edge_keep_probability: 0.5
+  # Number of independent random trials to average over
+  num_trials: 100
+
+eval:
+  eval_interval_rollouts: 1  # Evaluate every time (no training)
+  num_eval_episodes: 100
+  metrics: ["faithfulness", "sparsity", "f1", "iou", "num_edges", "eval_calls"]
+  save_best_mask: true
+  success_faithfulness: 0.8
+  success_sparsity: 0.2
+
+logging:
+  backend: "csv"
+  checkpoint_dir: "checkpoints/baselines/random"
+  log_trajectories: false
+
+seed: 42
+compute:
+  device: "cpu"
+  precision: "fp32"

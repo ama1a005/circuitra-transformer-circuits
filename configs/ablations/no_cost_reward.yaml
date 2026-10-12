@@ -1,0 +1,15 @@
+# =============================================================================
+# ablations/no_cost_reward.yaml — Ablation: Remove evaluation-cost reward term
+# gamma_cost = 0  ⟹ agent receives no penalty for using causal forward calls
+# =============================================================================
+_base_: "../hrl_ppo/base.yaml"
+
+reward:
+  include_cost_reward: false
+  gamma_cost: 0.0
+
+logging:
+  checkpoint_dir: "checkpoints/ablations/no_cost_reward"
+  backend: "tensorboard"
+
+seed: 42

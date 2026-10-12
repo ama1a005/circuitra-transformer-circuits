@@ -1,0 +1,45 @@
+# =============================================================================
+# final/interpbench.yaml — Final experiment config for InterpBench dataset
+# Production run: HRL PPO on full InterpBench benchmark
+# =============================================================================
+_base_: "../hrl_ppo/final.yaml"
+
+circuit:
+  dataset: "interpbench"
+  model_name: "gpt2"
+  task_name: "tracr_reverse"  # Can be overridden per task
+  candidate_top_k: 512
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 64
+  max_causal_forward_calls: 1000
+  faithfulness_guard_threshold: 0.0
+
+episode:
+  max_episode_steps: 300
+  max_manager_decisions: 60
+  option_horizon: 8
+  random_start_prob: 0.2
+
+eval:
+  eval_interval_rollouts: 100
+  num_eval_episodes: 50
+  metrics: ["faithfulness", "sparsity", "f1", "iou", "num_edges", "eval_calls"]
+  save_best_mask: true
+  success_faithfulness: 0.85
+  success_sparsity: 0.15
+
+logging:
+  backend: "wandb"
+  wandb_project: "hrl_circuit_localization"
+  wandb_entity: null
+  log_interval_steps: 50_000
+  checkpoint_interval_rollouts: 500
+  checkpoint_dir: "checkpoints/final/interpbench"
+  log_trajectories: true
+  log_grad_norms: true
+
+seed: 42
+compute:
+  device: "auto"
+  precision: "bf16"
+  torch_compile: true

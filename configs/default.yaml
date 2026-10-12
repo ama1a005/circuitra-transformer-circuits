@@ -1,0 +1,305 @@
+# =============================================================================
+# HRL Circuit Localization — Default Configuration (Spec §7)
+# =============================================================================
+# All fields are explicitly documented. Sub-configs inherit and override.
+
+# ---------------------------------------------------------------------------
+# 1. Circuit / Task definition
+# ---------------------------------------------------------------------------
+circuit:
+  # Dataset source: "mib" | "interpbench" | "mock"
+  dataset: "mib"
+
+  # Model checkpoint / identifier (HuggingFace path or local)
+  model_name: "gpt2"
+
+  # Task within the dataset
+  task_name: "ioi"
+
+  # Number of candidate edges in the computational graph
+  # (set automatically from dataset; override for mock envs)
+  candidate_top_k: 512
+
+  # Fraction of total dataset to use for faithfulness evaluation
+  eval_dataset_fraction: 1.0
+
+  # Batch size for causal forward passes during evaluation
+  eval_batch_size: 32
+
+  # Maximum number of causal forward-pass calls per episode
+  # (budget on environment interaction cost)
+  max_causal_forward_calls: 500
+
+  # Minimum faithfulness threshold below which a circuit is considered broken
+  faithfulness_guard_threshold: 0.0
+
+  # Ground-truth circuit edges (list of edge indices, used for mock / eval)
+  ground_truth_edges: []
+
+# ---------------------------------------------------------------------------
+# 2. Episode / MDP structure
+# ---------------------------------------------------------------------------
+episode:
+  # Maximum total steps per episode (both flat and HRL)
+  max_episode_steps: 200
+
+  # HRL: maximum manager decisions per episode
+  max_manager_decisions: 40
+
+  # HRL: fixed option horizon (worker steps per manager decision)
+  option_horizon: 5
+
+  # Whether the agent can issue an explicit STOP action
+  allow_explicit_stop: true
+
+  # Whether to start each episode with a fully-included circuit (True)
+  # or a fully-pruned one (False)
+  start_fully_included: true
+
+  # Probability of randomising the initial mask in training
+  random_start_prob: 0.0
+
+# ---------------------------------------------------------------------------
+# 3. Reward shaping  (Spec §17)
+# ---------------------------------------------------------------------------
+reward:
+  # α — faithfulness weight in potential Φ
+  alpha: 1.0
+
+  # β — sparsity weight in potential Φ (reward for pruning edges)
+  beta: 0.05
+
+  # γ_c — evaluation-cost weight in potential Φ
+  gamma_cost: 0.001
+
+  # λ — faithfulness-guard penalty slope
+  lambda_guard: 2.0
+
+  # τ — faithfulness guard threshold (same as circuit.faithfulness_guard_threshold)
+  tau: 0.0
+
+  # Terminal bonus for producing a valid (faithful + sparse) circuit
+  terminal_bonus: 1.0
+
+  # Minimum faithfulness for terminal bonus eligibility
+  terminal_faithfulness_min: 0.8
+
+  # Whether to use per-step potential-based shaping
+  use_potential_shaping: true
+
+  # Whether to include evaluation cost in reward
+  include_cost_reward: true
+
+  # Whether to include sparsity term in reward
+  include_sparsity_reward: true
+
+# ---------------------------------------------------------------------------
+# 4. State / Observation encoding  (Spec §14)
+# ---------------------------------------------------------------------------
+encoder:
+  # Dimensionality of edge feature embedding
+  edge_feature_dim: 64
+
+  # Dimensionality of region/module feature embedding
+  region_feature_dim: 64
+
+  # Dimensionality of global state feature vector
+  global_feature_dim: 32
+
+  # Whether to include positional encodings for edges
+  use_positional_encoding: true
+
+  # Number of attention heads in the transformer encoder (if used)
+  num_attention_heads: 4
+
+  # Number of transformer layers in state encoder
+  num_encoder_layers: 2
+
+  # Dropout probability in encoder
+  encoder_dropout: 0.1
+
+  # Normalise edge attribution scores before encoding
+  normalise_attributions: true
+
+# ---------------------------------------------------------------------------
+# 5. Policy networks
+# ---------------------------------------------------------------------------
+policy:
+  # Network architecture: "mlp" | "transformer" | "gnn"
+  arch: "mlp"
+
+  # Hidden layer sizes (MLP)
+  hidden_sizes: [256, 256]
+
+  # Activation function: "relu" | "tanh" | "gelu"
+  activation: "relu"
+
+  # Whether to share weights between actor and critic
+  shared_backbone: false
+
+  # Initialisation scheme: "orthogonal" | "xavier"
+  init_scheme: "orthogonal"
+
+  # Orthogonal init gain for policy head
+  policy_head_gain: 0.01
+
+  # Orthogonal init gain for value head
+  value_head_gain: 1.0
+
+# ---------------------------------------------------------------------------
+# 6. PPO Hyperparameters
+# ---------------------------------------------------------------------------
+ppo:
+  # Number of parallel rollout workers
+  num_envs: 8
+
+  # Steps collected per rollout before update
+  rollout_steps: 512
+
+  # Number of gradient update epochs per rollout
+  ppo_epochs: 4
+
+  # Mini-batch size for PPO updates
+  mini_batch_size: 128
+
+  # Learning rate (flat agent or manager)
+  learning_rate: 3.0e-4
+
+  # Worker learning rate (HRL only)
+  worker_learning_rate: 3.0e-4
+
+  # PPO clip epsilon
+  clip_epsilon: 0.2
+
+  # Entropy regularisation coefficient
+  entropy_coef: 0.01
+
+  # Value function loss coefficient
+  value_coef: 0.5
+
+  # Maximum gradient norm for clipping
+  max_grad_norm: 0.5
+
+  # Discount factor γ
+  gamma: 0.99
+
+  # GAE λ
+  gae_lambda: 0.95
+
+  # Whether to normalise advantages
+  normalise_advantages: true
+
+  # Whether to normalise value function targets
+  normalise_returns: false
+
+  # Learning-rate schedule: "constant" | "linear_decay" | "cosine"
+  lr_schedule: "linear_decay"
+
+  # Total environment steps for training
+  total_timesteps: 5_000_000
+
+# ---------------------------------------------------------------------------
+# 7. HRL-specific
+# ---------------------------------------------------------------------------
+hrl:
+  # Whether to use HRL (true) or flat PPO (false)
+  enabled: false
+
+  # Number of edge-regions / modules
+  num_regions: 8
+
+  # Whether the manager receives the full global state
+  manager_sees_global: true
+
+  # Whether the worker receives the region state
+  worker_sees_region: true
+
+  # Worker termination: "fixed_horizon" | "self_terminate"
+  worker_termination: "fixed_horizon"
+
+  # Separate entropy coeff for manager
+  manager_entropy_coef: 0.01
+
+  # Separate entropy coeff for worker
+  worker_entropy_coef: 0.01
+
+  # Whether to use option-value (Q_omega) critic for manager
+  use_option_critic: false
+
+# ---------------------------------------------------------------------------
+# 8. Evaluation
+# ---------------------------------------------------------------------------
+eval:
+  # How often (in rollouts) to run a full evaluation episode
+  eval_interval_rollouts: 50
+
+  # Number of evaluation episodes
+  num_eval_episodes: 10
+
+  # Metrics to log: list of strings
+  metrics:
+    - "faithfulness"
+    - "sparsity"
+    - "f1"
+    - "iou"
+    - "num_edges"
+    - "eval_calls"
+
+  # Whether to save the best circuit mask found
+  save_best_mask: true
+
+  # Faithfulness threshold for "success" classification
+  success_faithfulness: 0.8
+
+  # Sparsity threshold for "success" classification
+  success_sparsity: 0.2
+
+# ---------------------------------------------------------------------------
+# 9. Logging & Checkpointing
+# ---------------------------------------------------------------------------
+logging:
+  # Logging backend: "wandb" | "tensorboard" | "csv" | "none"
+  backend: "tensorboard"
+
+  # W&B project name
+  wandb_project: "hrl_circuit_localization"
+
+  # W&B entity / team
+  wandb_entity: null
+
+  # Log interval in environment steps
+  log_interval_steps: 10_000
+
+  # Checkpoint save interval in rollouts
+  checkpoint_interval_rollouts: 200
+
+  # Directory for checkpoints (relative to project root)
+  checkpoint_dir: "checkpoints"
+
+  # Whether to log per-episode trajectories
+  log_trajectories: false
+
+  # Whether to log gradient norms
+  log_grad_norms: true
+
+# ---------------------------------------------------------------------------
+# 10. Reproducibility
+# ---------------------------------------------------------------------------
+seed: 42
+deterministic_cudnn: true
+
+# ---------------------------------------------------------------------------
+# 11. Compute
+# ---------------------------------------------------------------------------
+compute:
+  # Device: "cpu" | "cuda" | "auto"
+  device: "auto"
+
+  # Mixed precision: "fp32" | "fp16" | "bf16"
+  precision: "fp32"
+
+  # Number of dataloader workers for dataset loading
+  num_data_workers: 2
+
+  # Whether to compile the model with torch.compile
+  torch_compile: false

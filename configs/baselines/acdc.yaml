@@ -1,0 +1,55 @@
+# =============================================================================
+# baselines/acdc.yaml — Automatic Circuit DisCovery (ACDC) baseline
+# =============================================================================
+_base_: "../default.yaml"
+
+circuit:
+  dataset: "mib"
+  model_name: "gpt2"
+  task_name: "ioi"
+  candidate_top_k: 512
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 32
+  max_causal_forward_calls: 5000  # ACDC is expensive; higher budget
+
+episode:
+  max_episode_steps: 1   # ACDC is a search algorithm, not step-by-step
+  allow_explicit_stop: false
+  start_fully_included: true
+
+hrl:
+  enabled: false
+
+# ACDC-specific settings
+baseline:
+  method: "acdc"
+  # Faithfulness threshold below which an edge is pruned
+  threshold: 0.05
+  # Whether to use the downstream-only variant
+  downstream_only: false
+  # Metric used by ACDC for edge evaluation
+  metric: "kl_divergence"
+  # Corruption method: "resample" | "zero" | "mean"
+  corruption: "resample"
+  # Maximum edges to search (0 = unlimited)
+  max_edges: 0
+  # Whether to run ACDC in verbose mode
+  verbose: false
+
+eval:
+  eval_interval_rollouts: 1
+  num_eval_episodes: 10
+  metrics: ["faithfulness", "sparsity", "f1", "iou", "num_edges", "eval_calls"]
+  save_best_mask: true
+  success_faithfulness: 0.8
+  success_sparsity: 0.2
+
+logging:
+  backend: "csv"
+  checkpoint_dir: "checkpoints/baselines/acdc"
+  log_trajectories: false
+
+seed: 42
+compute:
+  device: "auto"
+  precision: "fp32"

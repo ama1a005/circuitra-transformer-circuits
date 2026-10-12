@@ -1,0 +1,15 @@
+# =============================================================================
+# ablations/horizon_4.yaml — Ablation: Option horizon = 4
+# Intermediate option horizon between degenerate (1) and default (5).
+# =============================================================================
+_base_: "../hrl_ppo/base.yaml"
+
+episode:
+  option_horizon: 4
+  max_manager_decisions: 50
+
+logging:
+  checkpoint_dir: "checkpoints/ablations/horizon_4"
+  backend: "tensorboard"
+
+seed: 42

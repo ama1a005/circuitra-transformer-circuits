@@ -1,0 +1,16 @@
+# =============================================================================
+# ablations/horizon_1.yaml — Ablation: Option horizon = 1 (degenerate HRL)
+# With horizon=1, each manager decision maps to exactly 1 worker step,
+# effectively collapsing to a two-level but single-step option structure.
+# =============================================================================
+_base_: "../hrl_ppo/base.yaml"
+
+episode:
+  option_horizon: 1
+  max_manager_decisions: 200  # More decisions needed to fill episode budget
+
+logging:
+  checkpoint_dir: "checkpoints/ablations/horizon_1"
+  backend: "tensorboard"
+
+seed: 42

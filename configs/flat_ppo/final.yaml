@@ -1,0 +1,69 @@
+# =============================================================================
+# flat_ppo/final.yaml — Flat PPO final / production configuration
+# Inherits from: configs/flat_ppo/base.yaml
+# Tuned hyperparameters for best performance in final experiments.
+# =============================================================================
+_base_: "base.yaml"
+
+circuit:
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 64
+  max_causal_forward_calls: 1000
+
+episode:
+  max_episode_steps: 300
+  random_start_prob: 0.2
+
+reward:
+  alpha: 1.0
+  beta: 0.08
+  gamma_cost: 0.0005
+  lambda_guard: 3.0
+  terminal_bonus: 2.0
+  terminal_faithfulness_min: 0.85
+
+encoder:
+  edge_feature_dim: 128
+  region_feature_dim: 128
+  global_feature_dim: 64
+  num_attention_heads: 8
+  num_encoder_layers: 3
+  encoder_dropout: 0.05
+
+policy:
+  hidden_sizes: [512, 512]
+  shared_backbone: false
+
+ppo:
+  num_envs: 16
+  rollout_steps: 1024
+  ppo_epochs: 6
+  mini_batch_size: 256
+  learning_rate: 1.5e-4
+  clip_epsilon: 0.15
+  entropy_coef: 0.005
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  gae_lambda: 0.97
+  lr_schedule: "cosine"
+  total_timesteps: 10_000_000
+
+eval:
+  eval_interval_rollouts: 100
+  num_eval_episodes: 20
+  save_best_mask: true
+  success_faithfulness: 0.85
+
+logging:
+  backend: "wandb"
+  log_interval_steps: 25_000
+  checkpoint_interval_rollouts: 500
+  checkpoint_dir: "checkpoints/flat_ppo_final"
+  log_trajectories: true
+  log_grad_norms: true
+
+seed: 1337
+compute:
+  device: "auto"
+  precision: "bf16"
+  torch_compile: true

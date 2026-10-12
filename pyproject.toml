@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "hrl-circuits"
+version = "0.1.0"
+description = "Hierarchical Reinforcement Learning for Mechanistic Circuit Localization in Transformer Language Models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "HRL Circuits Team" },
+]
+keywords = [
+    "mechanistic interpretability",
+    "circuits",
+    "hierarchical reinforcement learning",
+    "transformers",
+    "causal tracing",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "torch>=2.2.0",
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "scipy>=1.12.0",
+    "scikit-learn>=1.4.0",
+    "pyyaml>=6.0.1",
+    "pydantic>=2.6.0",
+    "tqdm>=4.66.0",
+    "matplotlib>=3.8.0",
+    "transformer-lens>=1.18.0",
+    "einops>=0.7.0",
+    "click>=8.1.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "black>=24.2.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "ipython>=8.22.0",
+    "jupyterlab>=4.1.0",
+]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+]
+
+[project.scripts]
+hrl-circuits = "hrl_circuits.cli:main"
+
+[project.urls]
+Repository = "https://github.com/your-org/hrl-circuits"
+Issues = "https://github.com/your-org/hrl-circuits/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+# ── pytest ──────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--tb=short"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "gpu: marks tests that require a GPU",
+]
+
+# ── black ────────────────────────────────────────────────────────────────────
+[tool.black]
+line-length = 99
+target-version = ["py310", "py311", "py312"]
+
+# ── ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 99
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM"]
+ignore = ["ANN101", "ANN102", "ANN401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["hrl_circuits"]
+
+# ── mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true

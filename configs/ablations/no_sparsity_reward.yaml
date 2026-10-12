@@ -1,0 +1,15 @@
+# =============================================================================
+# ablations/no_sparsity_reward.yaml — Ablation: Remove sparsity reward term
+# beta = 0  ⟹ agent receives no reward for pruning edges (only faithfulness)
+# =============================================================================
+_base_: "../hrl_ppo/base.yaml"
+
+reward:
+  include_sparsity_reward: false
+  beta: 0.0
+
+logging:
+  checkpoint_dir: "checkpoints/ablations/no_sparsity_reward"
+  backend: "tensorboard"
+
+seed: 42

@@ -1,0 +1,45 @@
+# =============================================================================
+# final/main_mib.yaml — Final experiment config for MIB dataset
+# Production run: HRL PPO on full MIB benchmark
+# =============================================================================
+_base_: "../hrl_ppo/final.yaml"
+
+circuit:
+  dataset: "mib"
+  model_name: "gpt2"
+  task_name: "ioi"
+  candidate_top_k: 512
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 64
+  max_causal_forward_calls: 1000
+
+episode:
+  max_episode_steps: 300
+  max_manager_decisions: 60
+  option_horizon: 8
+  random_start_prob: 0.2
+
+eval:
+  eval_interval_rollouts: 100
+  num_eval_episodes: 50
+  metrics: ["faithfulness", "sparsity", "f1", "iou", "num_edges", "eval_calls"]
+  save_best_mask: true
+  success_faithfulness: 0.85
+  success_sparsity: 0.15
+
+logging:
+  backend: "wandb"
+  wandb_project: "hrl_circuit_localization"
+  wandb_entity: null
+  log_interval_steps: 50_000
+  checkpoint_interval_rollouts: 500
+  checkpoint_dir: "checkpoints/final/main_mib"
+  log_trajectories: true
+  log_grad_norms: true
+
+# Final run: 3 seeds for statistical robustness
+seed: 42
+compute:
+  device: "auto"
+  precision: "bf16"
+  torch_compile: true

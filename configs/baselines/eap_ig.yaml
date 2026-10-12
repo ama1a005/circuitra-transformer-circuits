@@ -1,0 +1,19 @@
+# =============================================================================
+# baselines/eap_ig.yaml — Edge Attribution Patching with Integrated Gradients
+# =============================================================================
+_base_: "eap.yaml"
+
+baseline:
+  method: "eap_ig"
+  aggregation: "mean"
+  threshold: 0.1
+  use_integrated_gradients: true
+  ig_steps: 50
+  corruption: "resample"
+
+logging:
+  backend: "csv"
+  checkpoint_dir: "checkpoints/baselines/eap_ig"
+  log_trajectories: false
+
+seed: 42

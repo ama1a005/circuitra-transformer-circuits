@@ -1,0 +1,107 @@
+# =============================================================================
+# tiny_mock.yaml — Tiny mock config for fast unit-testing
+# Inherits from: configs/default.yaml  (values overridden here)
+# =============================================================================
+_base_: "../default.yaml"
+
+circuit:
+  dataset: "mock"
+  model_name: "mock"
+  task_name: "mock_task"
+  candidate_top_k: 32          # spec-mandated for tiny_mock
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 4
+  max_causal_forward_calls: 50 # spec-mandated for tiny_mock
+  faithfulness_guard_threshold: 0.0
+  ground_truth_edges: [1, 3, 9, 17, 18]
+
+episode:
+  max_episode_steps: 10        # spec-mandated for tiny_mock
+  max_manager_decisions: 5     # spec-mandated for tiny_mock
+  option_horizon: 2            # spec-mandated for tiny_mock
+  allow_explicit_stop: true
+  start_fully_included: true
+  random_start_prob: 0.0
+
+reward:
+  alpha: 1.0
+  beta: 0.05
+  gamma_cost: 0.001
+  lambda_guard: 2.0
+  tau: 0.0
+  terminal_bonus: 1.0
+  terminal_faithfulness_min: 0.8
+  use_potential_shaping: true
+  include_cost_reward: true
+  include_sparsity_reward: true
+
+encoder:
+  edge_feature_dim: 8
+  region_feature_dim: 8
+  global_feature_dim: 8
+  use_positional_encoding: false
+  num_attention_heads: 2
+  num_encoder_layers: 1
+  encoder_dropout: 0.0
+  normalise_attributions: true
+
+policy:
+  arch: "mlp"
+  hidden_sizes: [32, 32]
+  activation: "relu"
+  shared_backbone: false
+
+ppo:
+  num_envs: 1
+  rollout_steps: 16
+  ppo_epochs: 2
+  mini_batch_size: 16
+  learning_rate: 1.0e-3
+  worker_learning_rate: 1.0e-3
+  clip_epsilon: 0.2
+  entropy_coef: 0.01
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  gamma: 0.99
+  gae_lambda: 0.95
+  normalise_advantages: true
+  normalise_returns: false
+  lr_schedule: "constant"
+  total_timesteps: 1_000
+
+hrl:
+  enabled: true
+  num_regions: 4
+  manager_sees_global: true
+  worker_sees_region: true
+  worker_termination: "fixed_horizon"
+  manager_entropy_coef: 0.01
+  worker_entropy_coef: 0.01
+  use_option_critic: false
+
+eval:
+  eval_interval_rollouts: 5
+  num_eval_episodes: 2
+  metrics: ["faithfulness", "sparsity", "num_edges"]
+  save_best_mask: false
+  success_faithfulness: 0.8
+  success_sparsity: 0.2
+
+logging:
+  backend: "none"
+  wandb_project: "hrl_circuit_localization_dev"
+  wandb_entity: null
+  log_interval_steps: 100
+  checkpoint_interval_rollouts: 50
+  checkpoint_dir: "checkpoints/dev"
+  log_trajectories: false
+  log_grad_norms: false
+
+seed: 0
+deterministic_cudnn: true
+
+compute:
+  device: "cpu"
+  precision: "fp32"
+  num_data_workers: 0
+  torch_compile: false

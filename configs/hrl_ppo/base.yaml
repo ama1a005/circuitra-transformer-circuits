@@ -1,0 +1,104 @@
+# =============================================================================
+# hrl_ppo/base.yaml — HRL PPO base configuration (manager + worker)
+# Inherits from: configs/default.yaml
+# =============================================================================
+_base_: "../default.yaml"
+
+circuit:
+  dataset: "mib"
+  model_name: "gpt2"
+  task_name: "ioi"
+  candidate_top_k: 512
+  eval_dataset_fraction: 1.0
+  eval_batch_size: 32
+  max_causal_forward_calls: 500
+  faithfulness_guard_threshold: 0.0
+
+episode:
+  max_episode_steps: 200
+  max_manager_decisions: 40
+  option_horizon: 5
+  allow_explicit_stop: true
+  start_fully_included: true
+  random_start_prob: 0.1
+
+reward:
+  alpha: 1.0
+  beta: 0.05
+  gamma_cost: 0.001
+  lambda_guard: 2.0
+  tau: 0.0
+  terminal_bonus: 1.0
+  terminal_faithfulness_min: 0.8
+  use_potential_shaping: true
+  include_cost_reward: true
+  include_sparsity_reward: true
+
+encoder:
+  edge_feature_dim: 64
+  region_feature_dim: 64
+  global_feature_dim: 32
+  use_positional_encoding: true
+  num_attention_heads: 4
+  num_encoder_layers: 2
+  encoder_dropout: 0.1
+  normalise_attributions: true
+
+policy:
+  arch: "mlp"
+  hidden_sizes: [256, 256]
+  activation: "relu"
+  shared_backbone: false
+  init_scheme: "orthogonal"
+  policy_head_gain: 0.01
+  value_head_gain: 1.0
+
+ppo:
+  num_envs: 8
+  rollout_steps: 512
+  ppo_epochs: 4
+  mini_batch_size: 128
+  learning_rate: 3.0e-4
+  worker_learning_rate: 3.0e-4
+  clip_epsilon: 0.2
+  entropy_coef: 0.01
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  gamma: 0.99
+  gae_lambda: 0.95
+  normalise_advantages: true
+  normalise_returns: false
+  lr_schedule: "linear_decay"
+  total_timesteps: 5_000_000
+
+hrl:
+  enabled: true
+  num_regions: 8
+  manager_sees_global: true
+  worker_sees_region: true
+  worker_termination: "fixed_horizon"
+  manager_entropy_coef: 0.01
+  worker_entropy_coef: 0.01
+  use_option_critic: false
+
+eval:
+  eval_interval_rollouts: 50
+  num_eval_episodes: 10
+  metrics: ["faithfulness", "sparsity", "f1", "iou", "num_edges", "eval_calls"]
+  save_best_mask: true
+  success_faithfulness: 0.8
+  success_sparsity: 0.2
+
+logging:
+  backend: "tensorboard"
+  log_interval_steps: 10_000
+  checkpoint_interval_rollouts: 200
+  checkpoint_dir: "checkpoints/hrl_ppo_base"
+  log_trajectories: false
+  log_grad_norms: true
+
+seed: 42
+compute:
+  device: "auto"
+  precision: "fp32"
+  torch_compile: false
