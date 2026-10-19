@@ -1,22 +1,23 @@
-"""
-Experiments package for HRL Circuit Localization.
-
-Provides:
-- ExperimentRunner    : runs flat and HRL experiments, registers results
-- ExperimentRegistry  : CSV-backed registry; never overwrites completed runs
-- PairedRunManager    : creates and verifies matched flat/HRL run pairs
-- ConfigFreezer       : marks configs as frozen before final experiments
-"""
-
-from .runner import ExperimentRunner
-from .registry import ExperimentRegistry
-from .paired_runs import PairedRunManager
-from .freeze import ConfigFreezer, FrozenConfigError
+"""experiments/__init__.py"""
+from hrl_circuits.experiments.runner import ExperimentRunner, RunResult
+from hrl_circuits.experiments.registry import ExperimentRegistry
+from hrl_circuits.experiments.paired_runs import PairedRunManager
+from hrl_circuits.experiments.freeze import (
+    ConfigFreezer,
+    FrozenConfigError,
+    freeze_config,
+    is_frozen,
+    require_frozen_config,
+)
 
 __all__ = [
     "ExperimentRunner",
+    "RunResult",
     "ExperimentRegistry",
     "PairedRunManager",
     "ConfigFreezer",
     "FrozenConfigError",
+    "freeze_config",
+    "is_frozen",
+    "require_frozen_config",
 ]
