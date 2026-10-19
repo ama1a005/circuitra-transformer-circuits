@@ -103,8 +103,9 @@ def ppo_update(
     rets_t = torch.stack(returns_list).to(device).detach()
     advs_t = torch.stack(advantages_list).to(device).detach()
 
-    # Normalize advantages
-    advs_t = (advs_t - advs_t.mean()) / (advs_t.std() + 1e-8)
+    # Normalize advantages (skip if only 1 sample to avoid NaN from std=0)
+    if advs_t.numel() > 1:
+        advs_t = (advs_t - advs_t.mean()) / (advs_t.std() + 1e-8)
 
     T = obs_t.shape[0]
     all_true_mask = torch.ones(action_dim, dtype=torch.bool, device=device)
@@ -123,7 +124,10 @@ def ppo_update(
             mb_ret = rets_t[idx]
 
             new_logits = actor_net(mb_obs)
-            expanded_mask = all_true_mask.unsqueeze(0).expand(mb_obs.shape[0], -1)
+            # Ensure logits are 2D: (batch, action_dim)
+            if new_logits.dim() == 1:
+                new_logits = new_logits.unsqueeze(0)
+            expanded_mask = all_true_mask.unsqueeze(0).expand(new_logits.shape[0], -1)
             new_dist = MaskedCategorical(logits=new_logits, mask=expanded_mask)
             new_log_probs = new_dist.log_prob(mb_acts)
             entropy = new_dist.entropy().mean()
@@ -312,6 +316,14 @@ def main():
 
                 w_valid_np = env.valid_worker_action_mask()
                 w_valid_t = torch.tensor(w_valid_np, dtype=torch.bool, device=device)
+                # Worker logits have dim num_edges+1, but worker mask is per-region.
+                # Pad the mask to match logit size (padded entries = False).
+                logit_dim = w_logits.shape[-1]
+                if w_valid_t.shape[0] < logit_dim:
+                    pad = torch.zeros(logit_dim - w_valid_t.shape[0], dtype=torch.bool, device=device)
+                    w_valid_t = torch.cat([w_valid_t, pad])
+                elif w_valid_t.shape[0] > logit_dim:
+                    w_valid_t = w_valid_t[:logit_dim]
 
                 w_dist = MaskedCategorical(logits=w_logits, mask=w_valid_t)
                 w_action = w_dist.sample()
