@@ -18,9 +18,13 @@ def compute_gae(
     rewards: Tensor,
     values: Tensor,
     dones: Tensor,
-    gamma: float,
-    gae_lambda: float,
-) -> tuple[Tensor, Tensor]:
+    next_value: "Tensor | float | None" = None,
+    gamma: float = 0.99,
+    lam: float = 0.95,
+    *,
+    gae_lambda: "float | None" = None,
+) -> Tensor:
+
     """
     Compute GAE advantages and discounted returns for a flat MDP rollout.
 
@@ -52,19 +56,34 @@ def compute_gae(
     values = values.float()
     dones = dones.float()
 
+    # Resolve lambda alias: gae_lambda kwarg takes precedence over lam positional
+    _lam = gae_lambda if gae_lambda is not None else lam
+
     T = rewards.shape[0]
     advantages = torch.zeros(T, dtype=torch.float32)
 
-    gae: float = 0.0
-    for t in reversed(range(T)):
-        next_value = values[t + 1] if t + 1 < values.shape[0] else torch.tensor(0.0)
-        next_non_terminal = 1.0 - dones[t]
-        delta = rewards[t] + gamma * next_value * next_non_terminal - values[t]
-        gae = float(delta) + gamma * gae_lambda * next_non_terminal.item() * gae
-        advantages[t] = gae
+    # Resolve bootstrap value for the step after the rollout
+    if next_value is None:
+        # Fall back to last element of values if values has T+1 elements
+        _next_val = values[T] if values.shape[0] > T else torch.tensor(0.0)
+    elif isinstance(next_value, (int, float)):
+        _next_val = torch.tensor(float(next_value))
+    else:
+        _next_val = next_value.float()
 
-    returns = advantages + values[:T]
-    return advantages, returns
+    gae_acc: float = 0.0
+    for t in reversed(range(T)):
+        if t + 1 < T:
+            v_next = values[t + 1]
+        else:
+            v_next = _next_val
+        next_non_terminal = 1.0 - dones[t]
+        delta = rewards[t] + gamma * v_next * next_non_terminal - values[t]
+        gae_acc = float(delta) + gamma * _lam * next_non_terminal.item() * gae_acc
+        advantages[t] = gae_acc
+
+    return advantages
+
 
 
 def compute_manager_gae(

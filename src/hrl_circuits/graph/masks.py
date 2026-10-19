@@ -25,43 +25,61 @@ from .schema import EdgeRecord, RegionRecord
 
 
 # ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_num_edges(num_edges) -> int:
+    """Accept either an int or a CandidateGraph and return the edge count."""
+    if isinstance(num_edges, int):
+        return num_edges
+    # Duck-type for CandidateGraph (avoids circular imports)
+    if hasattr(num_edges, "num_edges"):
+        return num_edges.num_edges
+    raise TypeError(
+        f"Expected int or CandidateGraph, got {type(num_edges).__name__!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Construction
 # ---------------------------------------------------------------------------
 
-def make_full_mask(num_edges: int) -> np.ndarray:
+def make_full_mask(num_edges) -> np.ndarray:
     """Return an all-ones mask (all edges live).
 
     Parameters
     ----------
     num_edges:
-        Number of edges in the graph.
+        Number of edges in the graph, or a ``CandidateGraph`` instance.
 
     Returns
     -------
     np.ndarray
         Shape ``(num_edges,)``, dtype ``uint8``, all values 1.
     """
-    if num_edges < 0:
-        raise ValueError(f"num_edges must be non-negative, got {num_edges}.")
-    return np.ones(num_edges, dtype=np.uint8)
+    n = _resolve_num_edges(num_edges)
+    if n < 0:
+        raise ValueError(f"num_edges must be non-negative, got {n}.")
+    return np.ones(n, dtype=np.uint8)
 
 
-def make_empty_mask(num_edges: int) -> np.ndarray:
+def make_empty_mask(num_edges) -> np.ndarray:
     """Return an all-zeros mask (all edges pruned).
 
     Parameters
     ----------
     num_edges:
-        Number of edges in the graph.
+        Number of edges in the graph, or a ``CandidateGraph`` instance.
 
     Returns
     -------
     np.ndarray
         Shape ``(num_edges,)``, dtype ``uint8``, all values 0.
     """
-    if num_edges < 0:
-        raise ValueError(f"num_edges must be non-negative, got {num_edges}.")
-    return np.zeros(num_edges, dtype=np.uint8)
+    n = _resolve_num_edges(num_edges)
+    if n < 0:
+        raise ValueError(f"num_edges must be non-negative, got {n}.")
+    return np.zeros(n, dtype=np.uint8)
 
 
 # ---------------------------------------------------------------------------
@@ -106,82 +124,109 @@ def apply_prune(mask: np.ndarray, edge_index: int) -> np.ndarray:
 # Queries
 # ---------------------------------------------------------------------------
 
-def get_live_edges(mask: np.ndarray, edges: list[EdgeRecord]) -> list[EdgeRecord]:
+def get_live_edges(mask, edges) -> list:
     """Return the subset of *edges* whose mask position is live (1).
+
+    Accepts two calling conventions:
+
+    1. ``get_live_edges(mask, edges)`` — standard (mask first, edges second)
+    2. ``get_live_edges(graph, mask)`` — convenience (CandidateGraph first, mask second)
 
     Parameters
     ----------
     mask:
-        Current mask array.
+        Current mask array (ndarray or list), OR a CandidateGraph.
     edges:
-        List of :class:`~hrl_circuits.graph.schema.EdgeRecord` objects
-        (from ``graph.edges``).  Assumed to be in canonical order so that
-        ``edges[i].edge_id == i``.
+        List of EdgeRecord objects, a CandidateGraph, or the mask array
+        when *mask* is a CandidateGraph.
 
     Returns
     -------
     list[EdgeRecord]
         Live edges in canonical order.
-
-    Raises
-    ------
-    ValueError
-        If ``len(mask) != len(edges)``.
     """
-    if len(mask) != len(edges):
+    # Detect CandidateGraph-first calling convention
+    if hasattr(mask, "edges"):
+        # Called as get_live_edges(graph, mask_array)
+        graph = mask
+        mask_arr = np.asarray(edges, dtype=np.uint8)
+        edge_list = graph.edges
+    else:
+        mask_arr = np.asarray(mask, dtype=np.uint8)
+        if hasattr(edges, "edges"):
+            edge_list = edges.edges
+        else:
+            edge_list = edges
+
+    if len(mask_arr) != len(edge_list):
         raise ValueError(
-            f"mask length ({len(mask)}) does not match number of edges "
-            f"({len(edges)})."
+            f"mask length ({len(mask_arr)}) does not match number of edges "
+            f"({len(edge_list)})."
         )
-    return [edge for edge, live in zip(edges, mask) if live]
+    return [edge for edge, live in zip(edge_list, mask_arr) if live]
 
 
-def get_live_edge_indices(mask: np.ndarray) -> list[int]:
+def get_live_edge_indices(mask) -> list[int]:
     """Return the list of indices where ``mask[i] == 1``.
 
     Parameters
     ----------
     mask:
-        Current mask array.
+        Current mask array (ndarray or list).
 
     Returns
     -------
     list[int]
         Sorted list of live indices.
     """
-    return list(np.where(mask)[0].astype(int))
+    return list(np.where(np.asarray(mask))[0].astype(int))
 
 
 def mask_for_region(
-    mask: np.ndarray,
-    region: RegionRecord,
-    edge_id_to_index: dict[int, int],
+    mask_or_graph,
+    region,
+    edge_id_to_index=None,
 ) -> np.ndarray:
     """Return a sub-mask restricted to the edges in *region*.
 
-    The returned array has the same length as *mask*; positions outside
-    the region are set to 0.
+    Accepts two calling conventions:
+
+    1. ``mask_for_region(mask, region, edge_id_to_index)`` — standard
+    2. ``mask_for_region(graph, region)`` — convenience (auto full mask)
 
     Parameters
     ----------
-    mask:
-        Global mask array.
+    mask_or_graph:
+        Global mask array (ndarray or list), OR a CandidateGraph.
     region:
-        The :class:`~hrl_circuits.graph.schema.RegionRecord` to restrict to.
+        The RegionRecord to restrict to.
     edge_id_to_index:
-        Mapping from ``edge_id`` to position in *mask* (from
-        :meth:`~hrl_circuits.graph.schema.CandidateGraph.edge_id_to_index`).
+        Mapping from edge_id to mask position. If None and mask_or_graph
+        is a CandidateGraph, built automatically from graph.
+        If None and mask_or_graph is an array, edge_id == position.
 
     Returns
     -------
     np.ndarray
         New mask where only region edges can be live.
     """
-    region_mask = np.zeros_like(mask)
+    # Detect CandidateGraph-first calling convention
+    if hasattr(mask_or_graph, "edges"):
+        graph = mask_or_graph
+        mask_arr = make_full_mask(graph.num_edges)
+        id_map = graph.edge_id_to_index()
+    else:
+        mask_arr = np.asarray(mask_or_graph, dtype=np.uint8)
+        id_map = edge_id_to_index  # may be None
+
+    region_mask = np.zeros_like(mask_arr)
     for edge_id in region.edge_ids:
-        idx = edge_id_to_index.get(edge_id)
-        if idx is not None and idx < len(mask):
-            region_mask[idx] = mask[idx]
+        if id_map is not None:
+            idx = id_map.get(edge_id)
+        else:
+            idx = edge_id  # assume edge_id == position
+        if idx is not None and 0 <= idx < len(mask_arr):
+            region_mask[idx] = mask_arr[idx]
     return region_mask
 
 
@@ -189,7 +234,7 @@ def mask_for_region(
 # Monotonicity validation
 # ---------------------------------------------------------------------------
 
-def validate_monotonic(old_mask: np.ndarray, new_mask: np.ndarray) -> bool:
+def validate_monotonic(old_mask, new_mask) -> bool:
     """Return ``True`` if *new_mask* is a valid monotonic update of *old_mask*.
 
     A monotonic update satisfies:  for every index ``i``,
@@ -199,9 +244,9 @@ def validate_monotonic(old_mask: np.ndarray, new_mask: np.ndarray) -> bool:
     Parameters
     ----------
     old_mask:
-        The mask before the update.
+        The mask before the update (ndarray or list).
     new_mask:
-        The mask after the update.
+        The mask after the update (ndarray or list).
 
     Returns
     -------
@@ -211,11 +256,13 @@ def validate_monotonic(old_mask: np.ndarray, new_mask: np.ndarray) -> bool:
     Raises
     ------
     ValueError
-        If the masks have different shapes.
+        If the masks have different lengths.
     """
-    if old_mask.shape != new_mask.shape:
+    old = np.asarray(old_mask, dtype=np.uint8)
+    new = np.asarray(new_mask, dtype=np.uint8)
+    if old.shape != new.shape:
         raise ValueError(
-            f"Mask shape mismatch: old={old_mask.shape}, new={new_mask.shape}."
+            f"Mask shape mismatch: old={old.shape}, new={new.shape}."
         )
-    # new_mask must be a subset of old_mask
-    return bool(np.all(new_mask <= old_mask))
+    # new must be a subset of old
+    return bool(np.all(new <= old))

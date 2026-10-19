@@ -15,38 +15,49 @@ from torch import Tensor
 
 
 def ppo_clip_loss(
-    log_probs: Tensor,
-    old_log_probs: Tensor,
-    advantages: Tensor,
+    log_probs: "Tensor | None" = None,
+    old_log_probs: "Tensor | None" = None,
+    advantages: "Tensor | None" = None,
     clip_coef: float = 0.2,
-) -> Tensor:
+    *,
+    log_prob_new: "Tensor | None" = None,
+    log_prob_old: "Tensor | None" = None,
+    clip_epsilon: "float | None" = None,
+) -> "Tensor":
     """
     Clipped surrogate objective (PPO-Clip).
 
-    L^{CLIP} = E[ min(r_t · Â_t,  clip(r_t, 1-ε, 1+ε) · Â_t) ]
+    Accepts both the original kwarg names (log_probs, old_log_probs, clip_coef)
+    and the test-suite names (log_prob_new, log_prob_old, clip_epsilon).
 
-    where r_t = exp(log π(a|s) - log π_old(a|s)).
+    L^{CLIP} = E[ min(r_t · Â_t,  clip(r_t, 1-ε, 1+ε) · Â_t) ]
 
     Parameters
     ----------
-    log_probs : Tensor, shape (N,)
+    log_probs / log_prob_new : Tensor, shape (N,)
         Log-probabilities under the *current* policy.
-    old_log_probs : Tensor, shape (N,)
+    old_log_probs / log_prob_old : Tensor, shape (N,)
         Log-probabilities recorded during data collection.
     advantages : Tensor, shape (N,)
         Normalised advantage estimates.
-    clip_coef : float
+    clip_coef / clip_epsilon : float
         ε – clipping range (default 0.2).
 
     Returns
     -------
     Tensor
-        Scalar surrogate loss (negated so gradient *ascent* becomes descent).
+        Scalar surrogate loss (negated for gradient descent).
     """
-    ratios = torch.exp(log_probs - old_log_probs)
+    # Resolve aliases
+    lp = log_prob_new if log_probs is None else log_probs
+    old_lp = log_prob_old if old_log_probs is None else old_log_probs
+    eps = clip_epsilon if clip_epsilon is not None else clip_coef
+
+    ratios = torch.exp(lp - old_lp)
     surr1 = ratios * advantages
-    surr2 = torch.clamp(ratios, 1.0 - clip_coef, 1.0 + clip_coef) * advantages
+    surr2 = torch.clamp(ratios, 1.0 - eps, 1.0 + eps) * advantages
     return -torch.mean(torch.min(surr1, surr2))
+
 
 
 def value_loss(

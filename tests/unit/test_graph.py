@@ -28,20 +28,20 @@ from tests.fixtures.mock_data import make_tiny_graph
 # ---------------------------------------------------------------------------
 
 def _build_edges(n: int) -> list[EdgeRecord]:
-    """Return n deterministic EdgeRecord objects."""
+    """Return n deterministic EdgeRecord objects with unique canonical sort keys."""
     edges = []
     for i in range(n):
-        src = i % 4
-        dst = (i % 4) + 1
+        src = i          # unique src_layer per edge → unique canonical key
+        dst = i + 1
         edges.append(EdgeRecord(
             edge_id=i,
             src_layer=src,
             dst_layer=dst,
-            src_node_id=f"L{src}.h{i % 3}",
-            dst_node_id=f"L{dst}.h{(i + 1) % 3}",
+            src_node_id=f"L{src}.h0",
+            dst_node_id=f"L{dst}.h0",
             edge_type="attention" if i % 2 == 0 else "mlp",
-            native_src_id=f"blocks.{src}.attn.hook_q{i % 3}",
-            native_dst_id=f"blocks.{dst}.attn.hook_k{(i + 1) % 3}",
+            native_src_id=f"blocks.{src}.attn.hook_q",
+            native_dst_id=f"blocks.{dst}.attn.hook_k",
             metadata={"idx": i},
         ))
     return edges
@@ -203,10 +203,32 @@ class TestNoDuplicateEdgeIds:
             validate_edge_records(edges + [dup])
 
     def test_no_duplicate_canonical_keys(self) -> None:
-        """validate_edge_records must raise on structural duplicates."""
-        edge = _build_edges(1)[0]
+        """validate_edge_records must raise on structural duplicates (same canonical key)."""
+        from hrl_circuits.graph.schema import EdgeRecord
+        # Two edges with different edge_ids but identical structural content
+        edge_a = EdgeRecord(
+            edge_id=0,
+            src_layer=1,
+            dst_layer=2,
+            src_node_id="L1.h0",
+            dst_node_id="L2.h0",
+            edge_type="attention",
+            native_src_id="blocks.1.hook_q",
+            native_dst_id="blocks.2.hook_k",
+        )
+        edge_b = EdgeRecord(
+            edge_id=1,           # different edge_id!
+            src_layer=1,         # same structural content → duplicate canonical key
+            dst_layer=2,
+            src_node_id="L1.h0",
+            dst_node_id="L2.h0",
+            edge_type="attention",
+            native_src_id="blocks.1.hook_q",
+            native_dst_id="blocks.2.hook_k",
+        )
         with pytest.raises(ValueError, match="Duplicate canonical sort key"):
-            validate_edge_records([edge, edge])
+            validate_edge_records([edge_a, edge_b])
+
 
     def test_valid_edge_list_passes(self) -> None:
         """validate_edge_records should not raise for a valid edge list."""
@@ -252,9 +274,20 @@ class TestCanonicalSortDeterministic:
 
     def test_canonical_sort_key_excludes_edge_id(self) -> None:
         """canonical_sort_key does not include edge_id."""
-        edge = _build_edges(1)[0]
+        # Use a distinctive edge_id (99) that won't match layer indices
+        edge = EdgeRecord(
+            edge_id=99,
+            src_layer=0,
+            dst_layer=1,
+            src_node_id="L0.h0",
+            dst_node_id="L1.h0",
+            edge_type="attention",
+            native_src_id="blocks.0.hook_q",
+            native_dst_id="blocks.1.hook_k",
+        )
         key = edge.canonical_sort_key
-        assert edge.edge_id not in key
+        assert 99 not in key, f"edge_id=99 should not appear in sort key {key}"
+
 
     def test_canonical_sort_key_structure(self) -> None:
         """canonical_sort_key is a tuple of (src_layer, dst_layer, src_node, dst_node, type)."""

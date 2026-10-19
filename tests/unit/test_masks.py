@@ -47,9 +47,12 @@ class TestFullMask:
             assert len(m) == n
 
     def test_full_mask_type(self) -> None:
+        import numpy as np
         graph = make_tiny_graph(8)
         mask = make_full_mask(graph)
-        assert all(isinstance(v, int) for v in mask)
+        # Accepts Python int or numpy integer types
+        assert all(isinstance(v, (int, np.integer)) for v in mask)
+
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +112,8 @@ class TestApplyPruneMonotonic:
         mask = make_empty_mask(graph)
         new_mask = apply_prune(mask, edge_index=2)
         assert new_mask[2] == 0
-        assert new_mask == mask
+        assert list(new_mask) == list(mask)
+
 
     def test_apply_prune_does_not_mutate(self) -> None:
         """apply_prune should return a new mask without mutating the original."""

@@ -111,3 +111,36 @@ def masked_categorical(
     """
     masked_logits = apply_action_mask(logits, valid_mask, fill_value)
     return Categorical(logits=masked_logits)
+
+
+class MaskedCategorical:
+    """Callable class wrapping :func:`masked_categorical`.
+
+    Tests instantiate via ``MaskedCategorical(logits=..., mask=...)``.
+
+    Parameters
+    ----------
+    logits : Tensor
+        Un-normalised action logits.
+    mask : Tensor
+        Boolean validity mask (True = valid action).
+    fill_value : float
+        Large negative fill for invalid logits.
+    """
+
+    def __init__(
+        self,
+        logits: Tensor,
+        mask: Tensor,
+        fill_value: float = -1e9,
+    ) -> None:
+        self._dist = masked_categorical(logits, mask, fill_value)
+
+    def sample(self) -> Tensor:
+        return self._dist.sample()
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return self._dist.log_prob(value)
+
+    def entropy(self) -> Tensor:
+        return self._dist.entropy()

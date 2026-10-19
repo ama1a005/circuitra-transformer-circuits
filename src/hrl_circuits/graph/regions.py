@@ -152,6 +152,28 @@ class RegionBuilder:
     # Internal validation
     # ------------------------------------------------------------------
 
+    def build(
+        self,
+        graph: "CandidateGraph",
+        mode: str = "component",
+    ) -> list["RegionRecord"]:
+        """Convenience entry-point delegating to the chosen strategy.
+
+        Parameters
+        ----------
+        graph:
+            The fully built :class:`CandidateGraph`.
+        mode:
+            ``"component"`` (default) or ``"layer"``.
+
+        Returns
+        -------
+        list[RegionRecord]
+        """
+        if mode == "layer":
+            return self.build_layer_regions(graph)
+        return self.build_component_regions(graph)
+
     @staticmethod
     def _validate_partition(
         graph: CandidateGraph,

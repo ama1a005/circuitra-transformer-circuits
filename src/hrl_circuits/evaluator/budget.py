@@ -135,9 +135,67 @@ class BudgetManager:
         """
         return self._used >= self._max
 
+    def reset(self) -> None:
+        """Reset consumed calls back to zero."""
+        self._used = 0
+
     def __repr__(self) -> str:  # pragma: no cover
         return (
             f"BudgetManager(used={self._used}/{self._max}, "
             f"remaining={self.remaining}, "
             f"normalized={self.normalized_remaining:.3f})"
         )
+
+
+class EvaluationBudget:
+    """Compatibility wrapper around :class:`BudgetManager`.
+
+    Exposes the ``consume`` / ``consumed`` / ``max_evaluations`` API used in
+    the unit test suite, delegating to an internal ``BudgetManager``.
+    """
+
+    def __init__(self, max_evaluations: int) -> None:
+        # Allow 0 evaluations (used in edge-case tests)
+        if max_evaluations < 0:
+            raise ValueError(
+                f"max_evaluations must be non-negative, got {max_evaluations!r}."
+            )
+        self._max = max_evaluations
+        self._used = 0
+
+    @property
+    def consumed(self) -> int:
+        """Number of evaluations consumed so far."""
+        return self._used
+
+    @property
+    def remaining(self) -> int:
+        """Remaining evaluations."""
+        return max(0, self._max - self._used)
+
+    def can_evaluate(self, predicted: int = 1) -> bool:
+        """Return ``True`` if *predicted* evaluations can still be spent."""
+        if predicted <= 0:
+            return True
+        return self._used + predicted <= self._max
+
+    def consume(self, n: int = 1) -> None:
+        """Spend *n* evaluations.
+
+        Raises
+        ------
+        BudgetExhaustedError
+            If consuming *n* would push usage above the maximum.
+        """
+        if self._max == 0 and n == 0:
+            return
+        if self._used + n > self._max:
+            raise BudgetExhaustedError(
+                f"Consuming {n} evaluation(s) would exceed the budget of "
+                f"{self._max} (used: {self._used}, remaining: {self.remaining})."
+            )
+        self._used += n
+
+    def reset(self) -> None:
+        """Reset consumption to zero."""
+        self._used = 0

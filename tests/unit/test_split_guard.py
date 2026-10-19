@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from hrl_circuits.evaluation.split_guard import (
+from hrl_circuits.benchmark.split_guard import (
     SplitGuardError,
     assert_can_train,
     assert_can_tune,

@@ -32,6 +32,51 @@ from typing import Any
 class TuningSplitViolationError(RuntimeError):
     """Raised when a forbidden split operation is attempted."""
 
+# Alias used by tests
+SplitGuardError = TuningSplitViolationError
+
+
+# ---------------------------------------------------------------------------
+# Module-level convenience functions (delegates to SplitGuard statics)
+# ---------------------------------------------------------------------------
+
+def _is_test_split(split: str) -> bool:
+    """Return True if *split* is any test/holdout variant."""
+    s = split.lower()
+    return (
+        s == "public_test"
+        or s == "test"
+        or s == "private_test"
+        or s == "holdout"
+        or s.endswith("_test")
+        or s.startswith("test")
+    )
+
+
+def _is_validation_like(split: str) -> bool:
+    """Return True if *split* is any validation/dev variant (not train)."""
+    s = split.lower()
+    return s.startswith("val") or s.startswith("dev")
+
+
+def assert_can_tune(split: str) -> None:
+    """Raise SplitGuardError if *split* is any test-like split."""
+    if _is_test_split(split):
+        raise TuningSplitViolationError(
+            f"Hyperparameter tuning on split={split!r} is forbidden. "
+            "Use split='validation' or split='train' for tuning."
+        )
+
+
+def assert_can_train(split: str) -> None:
+    """Raise SplitGuardError if *split* is not a training split."""
+    if _is_test_split(split) or _is_validation_like(split):
+        raise TuningSplitViolationError(
+            f"Agent training on split={split!r} is forbidden. "
+            "Training must use split='train' (or 'train_fold_*') only."
+        )
+
+
 
 # ---------------------------------------------------------------------------
 # Guard class

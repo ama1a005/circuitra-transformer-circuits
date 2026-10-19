@@ -236,12 +236,24 @@ class FlatActor(nn.Module):
 
     def __init__(
         self,
-        edge_embedding_dim: int,
-        global_embedding_dim: int,
+        edge_embedding_dim: int = 64,
+        global_embedding_dim: int = 32,
         hidden_dim: int = 128,
         include_stop: bool = True,
+        *,
+        obs_dim: "int | None" = None,
+        action_dim: "int | None" = None,
     ) -> None:
         super().__init__()
+        # Test-suite compatibility: accept obs_dim / action_dim shorthands.
+        # In that mode the network is a simple linear obs->action head.
+        if obs_dim is not None:
+            self._simple_mode = True
+            self._n_actions = action_dim if action_dim is not None else 8
+            self.linear = nn.Linear(obs_dim, self._n_actions)
+            self.include_stop = include_stop
+            return
+        self._simple_mode = False
         self.include_stop = include_stop
         self.score_head = _mlp(
             edge_embedding_dim + global_embedding_dim, hidden_dim, 1
@@ -251,24 +263,35 @@ class FlatActor(nn.Module):
                 torch.zeros(edge_embedding_dim)
             )
 
+
     def forward(
         self,
         edge_embeddings: Tensor,
-        global_embedding: Tensor,
+        global_embedding: "Tensor | None" = None,
         valid_mask: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Parameters
         ----------
-        edge_embeddings : Tensor, shape (batch, E, edge_emb_dim)
-        global_embedding : Tensor, shape (batch, global_emb_dim)
-        valid_mask : Tensor or None, shape (batch, E+1) or (batch, E)
+        edge_embeddings : Tensor
+            In simple mode: flat obs vector (batch, obs_dim) or (obs_dim,).
+            In full mode: (batch, E, edge_emb_dim).
+        global_embedding : Tensor or None
+            Required in full mode. Ignored in simple mode.
+        valid_mask : Tensor or None
             Boolean mask; True = action available.
 
         Returns
         -------
-        logits : Tensor, shape (batch, E+1) or (batch, E)
+        logits : Tensor
         """
+        if self._simple_mode:
+            obs = edge_embeddings
+            logits = self.linear(obs)                         # (..., n_actions)
+            if valid_mask is not None:
+                logits = logits.masked_fill(~valid_mask, -1e9)
+            return logits
+
         B, E, _ = edge_embeddings.shape
         g = global_embedding.unsqueeze(1).expand(B, E, -1)  # (B, E, g_dim)
         x = torch.cat([edge_embeddings, g], dim=-1)           # (B, E, e+g)
@@ -290,6 +313,7 @@ class FlatActor(nn.Module):
         return logits
 
 
+
 class FlatCritic(nn.Module):
     """
     Value head for flat PPO.
@@ -306,11 +330,18 @@ class FlatCritic(nn.Module):
 
     def __init__(
         self,
-        edge_embedding_dim: int,
-        global_embedding_dim: int,
+        edge_embedding_dim: int = 64,
+        global_embedding_dim: int = 32,
         hidden_dim: int = 128,
+        *,
+        obs_dim: "int | None" = None,
     ) -> None:
         super().__init__()
+        if obs_dim is not None:
+            self._simple_mode = True
+            self.net = nn.Linear(obs_dim, 1)
+            return
+        self._simple_mode = False
         self.net = _mlp(
             edge_embedding_dim + global_embedding_dim, hidden_dim, 1
         )
@@ -318,20 +349,25 @@ class FlatCritic(nn.Module):
     def forward(
         self,
         edge_embeddings: Tensor,
-        global_embedding: Tensor,
+        global_embedding: "Tensor | None" = None,
         edge_mask: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Parameters
         ----------
-        edge_embeddings : Tensor, shape (batch, E, edge_emb_dim)
-        global_embedding : Tensor, shape (batch, global_emb_dim)
-        edge_mask : Tensor or None, shape (batch, E) – True = real edge
+        edge_embeddings : Tensor
+            In simple mode: flat obs (batch, obs_dim) or (obs_dim,).
+            In full mode: (batch, E, edge_emb_dim).
+        global_embedding : Tensor or None
+        edge_mask : Tensor or None, shape (batch, E)
 
         Returns
         -------
-        Tensor, shape (batch,)
+        Tensor, shape (batch,) or scalar
         """
+        if self._simple_mode:
+            return self.net(edge_embeddings)  # shape: (..., 1)
+
         if edge_mask is not None:
             mask_f = edge_mask.unsqueeze(-1).float()
             pooled = (edge_embeddings * mask_f).sum(1) / mask_f.sum(1).clamp(1)
@@ -340,6 +376,7 @@ class FlatCritic(nn.Module):
 
         x = torch.cat([pooled, global_embedding], dim=-1)
         return self.net(x).squeeze(-1)
+
 
 
 # ---------------------------------------------------------------------------

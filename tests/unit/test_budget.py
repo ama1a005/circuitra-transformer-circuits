@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from hrl_circuits.evaluation.budget import (
+from hrl_circuits.evaluator.budget import (
     BudgetExhaustedError,
     EvaluationBudget,
 )
